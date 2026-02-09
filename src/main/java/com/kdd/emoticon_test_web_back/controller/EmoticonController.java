@@ -15,7 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/emoticons") // 엔드포인트 공통 경로 설정
 @RequiredArgsConstructor // 1. emoticonService 주입을 위한 생성자를 자동으로 만듭니다. [cite: 2026-02-03]
 @Slf4j // 2. log 객체를 자동으로 생성해 줍니다. (private static final Logger log ... 와 동일) [cite: 2026-02-03]
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173")
 public class EmoticonController {
 
     private final EmoticonService emoticonService;
@@ -53,4 +53,6 @@ public class EmoticonController {
             );
         }
     }
+
+
 }

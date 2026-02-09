@@ -28,38 +28,53 @@ public class EmoticonService {
         List<String> errorMessages = new ArrayList<>();
         BufferedImage image = null;
 
+        //사이즈 검증
+        checkFileSize(file, errorMessages);
+
         // 1. 보안 검증 (MIME Type)
         try {
             if (!checkMimeType(file)) {
                 errorMessages.add(ValidationCode.INVALID_MIME.getMessage());
             }
-        } catch (IOException e) {
-            errorMessages.add(ValidationCode.FILE_READ_ERROR.getMessage());
-        }
+            if (errorMessages.isEmpty()) {
+                image = ImageIO.read(file.getInputStream());
 
-        // 2. 규격 및 이미지 기반 검증
-        try {
-            image = ImageIO.read(file.getInputStream());
-            if (image == null) {
-                errorMessages.add(ValidationCode.FILE_READ_ERROR.getMessage());
-            } else {
-                // 규격 검사
-                if (image.getWidth() != 360 || image.getHeight() != 360) {
-                    errorMessages.add(ValidationCode.INVALID_SIZE.getMessage());
-                }
-                // 픽셀(투명도) 검사
-                if (!checkPixels(image)) {
-                    errorMessages.add(ValidationCode.INVALID_OPACITY.getMessage());
+                if (image == null) {
+                    // 파일은 있는데 이미지로 못 읽는 경우 (손상된 파일 등)
+                    errorMessages.add(ValidationCode.FILE_READ_ERROR.getMessage());
+                } else {
+                    // 이미지가 정상적으로 로딩되었을 때만 규격을 잰다.
+                    checkDimensions(image, errorMessages);
                 }
             }
         } catch (IOException e) {
             errorMessages.add(ValidationCode.FILE_READ_ERROR.getMessage());
         }
 
-        EmoticonProject project = saveValidationResult(userId, file.getOriginalFilename(), errorMessages);
+        return saveValidationResult(userId, file.getOriginalFilename(), errorMessages);
+    }
 
-        // 3. 최종 결과 집계 및 DB 저장
-        return emoticonRepository.save(project);
+    private void checkDimensions(BufferedImage image, List<String> errorMessages) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        if (width != 360 || height != 360) {
+            log.warn("규격 불일치: {}x{}", width, height);
+            errorMessages.add("규격 불일치: 현재 " + width + "x" + height + "px (권장: 360x360px)");
+        }
+    }
+
+    private void checkFileSize(MultipartFile file, List<String> errorMessages) {
+        long fileSizeInBytes = file.getSize();
+        double fileSizeInKB = fileSizeInBytes / 1024.0; // 실수를 위해 1024.0으로 나눔
+        long maxSizeInBytes = 150 * 1024;
+
+        if (fileSizeInBytes > maxSizeInBytes) {
+            // 소수점 첫째 자리까지 반올림해서 메시지 생성
+            String formattedSize = String.format("%.1f", fileSizeInKB);
+            log.warn("용량 초과: {} KB", formattedSize);
+            errorMessages.add("용량 초과: 현재 " + formattedSize + "KB (제한: 150KB)");
+        }
     }
 
     private boolean checkMimeType(MultipartFile file) throws IOException {
@@ -74,10 +89,10 @@ public class EmoticonService {
                 int argb = image.getRGB(x, y);
                 int alpha = (argb >> 24) & 0xff;
                 // 반투명 픽셀 검사 로직 (필요에 따라 기준 값 조정)
-                if (alpha > 0 && alpha < 150) {
+                if (alpha > 0 && alpha < 10) {
                     log.warn("부적절한 픽셀 발견: ({}, {}), Alpha: {}", x, y, alpha);
                     isValid = false;
-                    // 모든 픽셀을 다 검사할지, 하나만 발견해도 종료할지는 기획에 따라 결정
+                    break;
                 }
             }
         }
@@ -97,9 +112,6 @@ public class EmoticonService {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        emoticonRepository.save(project);
-        log.info("검증 완료 - 상태: {}, 메시지: {}", status, detailedMessage);
-
-        return project;
+        return emoticonRepository.save(project);
     }
 }
