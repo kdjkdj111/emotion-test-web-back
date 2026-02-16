@@ -95,7 +95,7 @@ public class EmoticonService {
 
         if (width != targetW || height != targetH) {
             log.warn("규격 불일치: {}x{} (기대: {}x{})", width, height, targetW, targetH);
-            errorMessages.add("규격 불일치: 현재 " + width + "x" + height + "px (권장: " + targetW + "x" + targetH + "px)");
+            errorMessages.add("규격 불일치: 현재 " + width + "x" + height + "px \n(권장: " + targetW + "x" + targetH + "px)");
         }
     }
 
@@ -106,7 +106,7 @@ public class EmoticonService {
 
         if (fileSizeInBytes > maxSizeInBytes) {
             String formattedSize = String.format("%.1f", fileSizeInKB);
-            errorMessages.add("용량 초과: 현재 " + formattedSize + "KB (제한: " + maxKB + "KB)");
+            errorMessages.add("용량 초과: 현재 " + formattedSize + "KB \n(제한: " + maxKB + "KB)");
         }
     }
 
