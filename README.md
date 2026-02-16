@@ -10,8 +10,8 @@
 - **File Handling**: MultipartFile을 이용한 효율적인 데이터 처리
 
 ## 🛠 Tech Stack
-- **Framework**: Spring Boot 3.x
-- **Language**: Java 17
+- **Framework**: Spring Boot 4.x
+- **Language**: Java
 - **Tooling**: Lombok, Spring Web
 - **Build**: Gradle
 
