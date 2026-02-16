@@ -23,16 +23,20 @@ public class EmoticonController {
     @PostMapping("/upload")
     public ResponseEntity<EmoticonResponseDto> uploadEmoticon( // 반환 타입 변경
                                                                @RequestParam("userId") String userId,
-                                                               @RequestParam("file") MultipartFile file) {
+                                                               @RequestParam("file") MultipartFile file,
+                                                               @RequestParam("type") String type,
+                                                               @RequestParam("fileId") String fileId)
+    {
 
         try {
-            log.info("업로드 요청 - 사용자: {}, 파일: {}", userId, file.getOriginalFilename());
+            log.info("업로드 요청 - 유저: {}, 타입: {}, 파일: {}", userId, type, file.getOriginalFilename());
 
             // 1. 서비스 호출 (저장된 엔티티를 받음)
-            EmoticonProject savedProject = emoticonService.processEmoticon(userId, file);
+            EmoticonProject savedProject = emoticonService.processEmoticon(userId, file, type, fileId);
 
             // 2. 엔티티 -> DTO 변환 (리액트가 쓰기 편하게 포장)
             EmoticonResponseDto responseDto = EmoticonResponseDto.builder()
+                    .fileId(fileId)
                     .fileName(savedProject.getOriginalFileName())
                     .status(savedProject.getStatus())
                     .errorMessage(savedProject.getErrorMessage())

@@ -24,62 +24,90 @@ public class EmoticonService {
     private final EmoticonRepository emoticonRepository;
     private final Tika tika = new Tika();
 
-    public EmoticonProject processEmoticon(String userId, MultipartFile file) {
+    public EmoticonProject processEmoticon(String userId, MultipartFile file, String type, String fileId) {
         List<String> errorMessages = new ArrayList<>();
         BufferedImage image = null;
 
-        //사이즈 검증
-        checkFileSize(file, errorMessages);
-
-        // 1. 보안 검증 (MIME Type)
+        //검증
         try {
+            //png 파일 검증
             if (!checkMimeType(file)) {
                 errorMessages.add(ValidationCode.INVALID_MIME.getMessage());
             }
-            if (errorMessages.isEmpty()) {
-                image = ImageIO.read(file.getInputStream());
 
-                if (image == null) {
-                    // 파일은 있는데 이미지로 못 읽는 경우 (손상된 파일 등)
-                    errorMessages.add(ValidationCode.FILE_READ_ERROR.getMessage());
-                } else {
-                    // 이미지가 정상적으로 로딩되었을 때만 규격을 잰다.
-                    checkDimensions(image, errorMessages);
-                }
+            //이미지 손상 검증
+            image = ImageIO.read(file.getInputStream());
+            if (image == null) {
+                // 파일은 있는데 이미지로 못 읽는 경우 (손상된 파일 등)
+                errorMessages.add(ValidationCode.FILE_READ_ERROR.getMessage());
             }
+
+            //타입별 검증 로직
+            switch (type) {
+                case "STILL":
+                    validateStillEmoticon(image, file, errorMessages);
+                    break;
+                case "MINI":
+                    validateMiniEmoticon(image, file, errorMessages);
+                    break;
+                case "ANIMATED":
+                    validateAnimatedEmoticon(image, file, errorMessages);
+                    break;
+                default:
+                    errorMessages.add("알 수 없는 이모티콘 타입입니다: " + type);
+            }
+
         } catch (IOException e) {
+            log.error("파일 처리 중 오류 발생", e);
             errorMessages.add(ValidationCode.FILE_READ_ERROR.getMessage());
         }
 
-        return saveValidationResult(userId, file.getOriginalFilename(), errorMessages);
+        return saveValidationResult(userId,fileId, file.getOriginalFilename(),type, errorMessages);
     }
 
-    private void checkDimensions(BufferedImage image, List<String> errorMessages) {
-        int width = image.getWidth();
-        int height = image.getHeight();
-
-        if (width != 360 || height != 360) {
-            log.warn("규격 불일치: {}x{}", width, height);
-            errorMessages.add("규격 불일치: 현재 " + width + "x" + height + "px (권장: 360x360px)");
-        }
+    //타입별 로직 묶음
+    private void validateStillEmoticon(BufferedImage image, MultipartFile file, List<String> errorMessages) {
+        checkDimensions(image, 360, 360, errorMessages);
+        checkFileSize(file, 150, errorMessages); // 150KB
+        // 필요 시 픽셀 검사 추가 가능
+        // if (!checkPixels(image)) errorMessages.add("반투명 픽셀 오류...");
+    }
+    private void validateMiniEmoticon(BufferedImage image, MultipartFile file, List<String> errorMessages) {
+        checkDimensions(image, 144, 144, errorMessages);
+        checkFileSize(file, 100, errorMessages); // 미니는 더 작게 (예시)
+    }
+    private void validateAnimatedEmoticon(BufferedImage image, MultipartFile file, List<String> errorMessages) {
+        checkDimensions(image, 360, 360, errorMessages);
+        checkFileSize(file, 2000, errorMessages); // GIF는 용량이 큼 (2MB 예시)
+        //GIF 프레임 수 검사 로직 추가 예정
     }
 
-    private void checkFileSize(MultipartFile file, List<String> errorMessages) {
-        long fileSizeInBytes = file.getSize();
-        double fileSizeInKB = fileSizeInBytes / 1024.0; // 실수를 위해 1024.0으로 나눔
-        long maxSizeInBytes = 150 * 1024;
 
-        if (fileSizeInBytes > maxSizeInBytes) {
-            // 소수점 첫째 자리까지 반올림해서 메시지 생성
-            String formattedSize = String.format("%.1f", fileSizeInKB);
-            log.warn("용량 초과: {} KB", formattedSize);
-            errorMessages.add("용량 초과: 현재 " + formattedSize + "KB (제한: 150KB)");
-        }
-    }
-
+    //각종 검사 로직
     private boolean checkMimeType(MultipartFile file) throws IOException {
         String mimeType = tika.detect(file.getInputStream());
         return "image/png".equals(mimeType);
+    }
+
+    private void checkDimensions(BufferedImage image, int targetW, int targetH, List<String> errorMessages) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+
+        if (width != targetW || height != targetH) {
+            log.warn("규격 불일치: {}x{} (기대: {}x{})", width, height, targetW, targetH);
+            errorMessages.add("규격 불일치: 현재 " + width + "x" + height + "px (권장: " + targetW + "x" + targetH + "px)");
+        }
+    }
+
+    private void checkFileSize(MultipartFile file, long maxKB, List<String> errorMessages) {
+        long fileSizeInBytes = file.getSize();
+        double fileSizeInKB = fileSizeInBytes / 1024.0;
+        long maxSizeInBytes = maxKB * 1024;
+
+        if (fileSizeInBytes > maxSizeInBytes) {
+            String formattedSize = String.format("%.1f", fileSizeInKB);
+            errorMessages.add("용량 초과: 현재 " + formattedSize + "KB (제한: " + maxKB + "KB)");
+        }
     }
 
     private boolean checkPixels(BufferedImage image) {
@@ -99,16 +127,18 @@ public class EmoticonService {
         return isValid;
     }
 
-    private EmoticonProject saveValidationResult(String userId, String fileName, List<String> errors) {
+    private EmoticonProject saveValidationResult(String userId, String fileId, String fileName, String type, List<String> errors) {
         String status = errors.isEmpty() ? "SUCCESS" : "FAILED";
         // 여러 에러 메시지를 줄바꿈(\n)으로 합칩니다.
         String detailedMessage = String.join("\n", errors);
 
         EmoticonProject project = EmoticonProject.builder()
                 .userId(userId)
+                .fileId(fileId)
+                .emoticonType(type)
                 .originalFileName(fileName)
                 .status(status)
-                .errorMessage(detailedMessage) // Entity에 해당 필드 추가 필요
+                .errorMessage(detailedMessage)
                 .createdAt(LocalDateTime.now())
                 .build();
 

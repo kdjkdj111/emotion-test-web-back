@@ -25,9 +25,9 @@ public class EmoticonProject {
 
     private String originalFileName; // 사용자가 올린 원래 파일명
 
-    private String savedFileName; // 서버에 저장된 UUID 파일명
+    private String fileId; // 프론트에서 생성한 파일 고유 ID
 
-    private String filePath; // 파일의 로컬 저장 경로
+    private String emoticonType; // STILL, MINI, ANIMATED 등
 
     private String status; // 현재 검증 상태
 
