@@ -3,11 +3,6 @@ package com.kdd.emoticon_test_web_back.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -17,22 +12,21 @@ import java.time.LocalDateTime;
 @Builder
 public class EmoticonProject {
 
-
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // 데이터베이스 식별자
+    private Long id;
 
-    private String userId; // 사용자 아이디
+    private String userId;
 
-    private String originalFileName; // 사용자가 올린 원래 파일명
+    // 🚀 [NEW] 이 파일이 속한 프로젝트(작업 세션)를 묶어주는 ID
+    private String projectId;
 
-    private String fileId; // 프론트에서 생성한 파일 고유 ID
-
-    private String emoticonType; // STILL, MINI, ANIMATED 등
-
-    private String status; // 현재 검증 상태
+    private String originalFileName;
+    private String fileId;
+    private String emoticonType;
+    private String status;
 
     @Column(columnDefinition = "TEXT")
     private String errorMessage;
 
-    private LocalDateTime createdAt; // 생성 시간
+    private LocalDateTime createdAt;
 }

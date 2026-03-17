@@ -7,4 +7,8 @@ import java.util.List;
 
 public interface EmoticonRepository extends JpaRepository<EmoticonProject, Long> {
     List<EmoticonProject> findByUserId(String userId); //사용자 아이디로 조회
+    List<EmoticonProject> findByUserIdOrderByCreatedAtDesc(String userId);
+    List<EmoticonProject> findByProjectIdOrderByCreatedAtDesc(String projectId);
 }
+
+
